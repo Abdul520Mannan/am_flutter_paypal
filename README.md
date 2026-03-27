@@ -5,6 +5,8 @@
 
 A Flutter plugin for PayPal Advanced Checkout integration (Approval Only). This plugin handles the secure entry and approval of card details using PayPal's native SDKs.
 
+Repository: [https://github.com/Abdul520Mannan/am_flutter_paypal](https://github.com/Abdul520Mannan/am_flutter_paypal)
+
 ## Security Architecture
 
 This plugin follows a secure, backend-driven architecture:

@@ -1,7 +1,8 @@
 name: am_flutter_paypal
 description: "An unofficial Flutter plugin for PayPal Advanced Checkout integration (Approval Only)."
 version: 0.0.1
-homepage: https://github.com/am-tech/am_flutter_paypal
+homepage: https://github.com/Abdul520Mannan/am_flutter_paypal
+repository: https://github.com/Abdul520Mannan/am_flutter_paypal
 
 environment:
   sdk: ^3.11.1
