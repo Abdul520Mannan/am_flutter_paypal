@@ -11,6 +11,7 @@ class AmFlutterPaypal {
 
   static bool _isInitialized = false;
   static bool _isProcessing = false;
+  static String? _returnUrl;
 
   /// Initializes the PayPal SDK with your [clientId] and [environment].
   ///
@@ -19,15 +20,20 @@ class AmFlutterPaypal {
   static Future<bool> initialize({
     required String clientId,
     required PayPalEnvironment environment,
+    String? returnUrl,
   }) async {
-    if (_isInitialized) return true;
+    if (_isInitialized && _returnUrl == returnUrl) return true;
 
     try {
       final bool? success = await _channel.invokeMethod<bool>('initialize', {
         'clientId': clientId,
         'environment': environment.name,
+        'returnUrl': returnUrl,
       });
-      _isInitialized = success ?? false;
+      if (success == true) {
+        _isInitialized = true;
+        _returnUrl = returnUrl;
+      }
       return _isInitialized;
     } on PlatformException catch (e) {
       debugPrint('PayPal SDK Initialization Error: ${e.message}');

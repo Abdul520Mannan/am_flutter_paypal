@@ -26,6 +26,7 @@ class _MyAppState extends State<MyApp> {
     final success = await AmFlutterPaypal.initialize(
       clientId: 'YOUR_SANDBOX_CLIENT_ID', // Replace with real ID
       environment: PayPalEnvironment.sandbox,
+      returnUrl: 'com.am.amflutterpaypal://paypalpay',
     );
     if (mounted) {
       setState(() {

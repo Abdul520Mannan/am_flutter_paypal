@@ -72,7 +72,8 @@ android {
 
 dependencies {
     implementation("com.paypal.android:card-payments:2.3.0")
-    implementation("com.paypal.android:core-sdk:2.3.0")
+    implementation("com.paypal.android:core-payments:2.3.0")
+    
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

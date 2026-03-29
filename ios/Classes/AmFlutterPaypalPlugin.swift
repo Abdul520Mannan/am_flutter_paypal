@@ -31,6 +31,8 @@ public class AmFlutterPaypalPlugin: NSObject, FlutterPlugin {
             let environment: Environment = (environmentStr.lowercased() == "live") ? .live : .sandbox
             let config = CoreConfig(clientID: clientId, environment: environment)
             self.cardClient = CardClient(config: config)
+            // Note: returnUrl is mainly used on Android SDK 2.x, 
+            // on iOS it's traditionally handled via the App's URL Scheme.
             result(true)
 
         case "approveOrder":

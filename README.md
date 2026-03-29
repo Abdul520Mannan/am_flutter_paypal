@@ -3,9 +3,7 @@
 > [!IMPORTANT]
 > **DISCLAIMER**: This is an **UNOFFICIAL** community-driven Flutter plugin for PayPal Advanced Checkout. It is not developed, maintained, or supported by PayPal.
 
-A Flutter plugin for PayPal Advanced Checkout integration (Approval Only). This plugin handles the secure entry and approval of card details using PayPal's native SDKs.
-
-Repository: [https://github.com/Abdul520Mannan/am_flutter_paypal](https://github.com/Abdul520Mannan/am_flutter_paypal)
+A secure Flutter plugin for PayPal Advanced Checkout integration (Approval Only). This plugin handles the secure entry and approval of card details using PayPal's native SDKs.
 
 ## Security Architecture
 
@@ -24,39 +22,57 @@ This plugin follows a secure, backend-driven architecture:
 
 ### 2. Android Setup
 
-In your `android/build.gradle` (or `build.gradle.kts`):
-```kotlin
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+In your `android/app/src/main/AndroidManifest.xml`, add the following intent filter inside the `<activity>` tag that handles the PayPal return:
+
+```xml
+<intent-filter android:label="paypalpay">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="com.am.amflutterpaypal" android:host="paypalpay" />
+</intent-filter>
 ```
+
+> [!TIP]
+> Make sure the `android:scheme` matches the `returnUrl` you pass during initialization.
 
 ### 3. iOS Setup
 
-In your `ios/Podfile`:
-```ruby
-platform :ios, '14.0'
+In your `ios/Runner/Info.plist`, add the URL Scheme:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLName</key>
+        <string>paypalpay</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>com.am.amflutterpaypal</string>
+        </array>
+    </dict>
+</array>
 ```
 
 ## Usage
 
 ### 1. Initialization
 
-Initialize the SDK once at app startup or before the checkout screen.
+Initialize the SDK once with your Client ID and a unique return URL.
 
 ```dart
 final bool initialized = await AmFlutterPaypal.initialize(
   clientId: "YOUR_PAYPAL_CLIENT_ID",
   environment: PayPalEnvironment.sandbox, // or PayPalEnvironment.live
+  returnUrl: "com.am.amflutterpaypal://paypalpay",
 );
 ```
 
 ### 2. Approve Order
 
-Call your backend to get an `orderId`, then pass it to the plugin.
+Call your backend to get an `orderId`, then pass it to the plugin along with the `PayPalCard` details.
 
 ```dart
 final card = PayPalCard(
@@ -65,6 +81,13 @@ final card = PayPalCard(
   expirationMonth: "12",
   expirationYear: "2025",
   securityCode: "123",
+  billingAddress: {
+    "street": "123 Main St",
+    "city": "San Jose",
+    "state": "CA",
+    "zip": "95131",
+    "country": "US",
+  },
 );
 
 final result = await AmFlutterPaypal.approveOrder(
@@ -73,8 +96,8 @@ final result = await AmFlutterPaypal.approveOrder(
 );
 
 if (result.success) {
-  print("Payment Approved: ${result.orderId}");
-  // Now call your backend to CAPTURE the payment
+  print("Payment Approved! Order ID: ${result.orderId}");
+  // Now call your backend to CAPTURE the payment using result.orderId
 } else {
   print("Payment Failed: ${result.errorCode} - ${result.message}");
 }
@@ -84,11 +107,13 @@ if (result.success) {
 
 | Error Code | Description |
 |------------|-------------|
-| `SDK_NOT_INITIALIZED` | `initialize` was not called successfully. |
+| `SDK_NOT_INITIALIZED` | `initialize` was not called or failed. |
 | `PAYMENT_IN_PROGRESS` | Another payment approval is already active. |
 | `PAYMENT_TIMEOUT` | No response from native SDK after 60 seconds. |
 | `USER_CANCELLED` | User closed the payment/3DS UI. |
 | `INVALID_ARGUMENTS` | Missing Order ID or card details. |
+| `AUTHORIZATION_REQUIRED` | Additional authorization (like 3DS) was required but not completed. |
+| `PLATFORM_ERROR` | An error occurred in the native Android or iOS layer. |
 
 ## Important Security Note
 
