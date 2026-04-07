@@ -1,7 +1,6 @@
 import Flutter
 import UIKit
-import PayPalCardPayments
-import PayPalCorePayments
+import PayPal
 
 public class AmFlutterPaypalPlugin: NSObject, FlutterPlugin {
     private var cardClient: CardClient?
@@ -48,7 +47,7 @@ public class AmFlutterPaypalPlugin: NSObject, FlutterPlugin {
                 return
             }
 
-            let card = Card(
+            var card = Card(
                 number: cardMap["cardNumber"] as? String ?? "",
                 expirationMonth: cardMap["expirationMonth"] as? String ?? "",
                 expirationYear: cardMap["expirationYear"] as? String ?? "",
@@ -88,7 +87,6 @@ extension AmFlutterPaypalPlugin: CardDelegate {
         var response: [String: Any] = [:]
         response["success"] = true
         response["orderId"] = result.orderID
-        response["status"] = result.status
         // Additional metadata could be added here
         sendResponse(response)
     }
@@ -96,7 +94,7 @@ extension AmFlutterPaypalPlugin: CardDelegate {
     public func card(_ cardClient: CardClient, didFinishWithError error: CoreSDKError) {
         var response: [String: Any] = [:]
         response["success"] = false
-        response["errorCode"] = String(error.code)
+        response["errorCode"] = String(error.code ?? 0)
         response["message"] = error.errorDescription
         sendResponse(response)
     }
@@ -109,7 +107,7 @@ extension AmFlutterPaypalPlugin: CardDelegate {
         sendResponse(response)
     }
 
-    public func cardThreeDSecureWillAppear(_ cardClient: CardClient) {
+    public func cardThreeDSecureWillLaunch(_ cardClient: CardClient) {
         // Optional: Notify Flutter that 3DS UI is appearing
     }
 

@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'am_flutter_paypal'
-  s.version          = '0.0.1'
+  s.version          = '0.1.0'
   s.summary          = 'A new Flutter plugin project.'
   s.description      = <<-DESC
 A new Flutter plugin project.
@@ -16,7 +16,8 @@ A new Flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.platform = :ios, '14.0'
-  s.dependency 'PayPal/CardPayments'
+  s.dependency 'PayPal/CardPayments', '~> 1.0.0'
+  s.dependency 'PayPal/CorePayments', '~> 1.0.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
