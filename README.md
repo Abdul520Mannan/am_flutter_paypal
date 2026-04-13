@@ -1,30 +1,84 @@
-# am_flutter_paypal
 
-> [!IMPORTANT]
-> **DISCLAIMER**: This is an **UNOFFICIAL** community-driven Flutter plugin for PayPal Advanced Checkout. It is not developed, maintained, or supported by PayPal.
+> **DISCLAIMER:**
+> This is an **unofficial, community-driven Flutter plugin** for PayPal Advanced Checkout (Card Approval Only). It is not developed, maintained, or supported by PayPal.
 
-A Flutter plugin for PayPal Advanced Checkout integration (Approval Only). This plugin handles the secure entry and approval of card details using PayPal's native SDKs.
+A secure Flutter plugin for PayPal card payments using native Android and iOS SDKs.
 
-Repository: [https://github.com/Abdul520Mannan/am_flutter_paypal](https://github.com/Abdul520Mannan/am_flutter_paypal)
+This plugin handles only:
 
-## Security Architecture
+- SDK initialization
+- Secure card data submission via native SDK
+- Payment approval (including 3DS / authentication)
+- Native error and status reporting
 
-This plugin follows a secure, backend-driven architecture:
-1. **No Backend Secrets**: Client Secrets and API credentials never exist in the mobile app.
-2. **Backend Order Creation**: Your server creates the PayPal Order using the Orders v2 API.
-3. **Approval Only**: This plugin ONLY handles the `approveOrder` step.
-4. **Backend Capture**: Your server captures the payment after the plugin returns a success status.
+It does **NOT**:
 
-## Getting Started
+- Create PayPal orders
+- Capture payments
+- Store or manage PayPal secrets
+- Expose any backend logic
 
-### 1. Requirements
+## 🔌 Plugin Scope
 
-- **Android**: minSdk 24+
-- **iOS**: iOS 14.0+
+This plugin is a thin native wrapper over PayPal mobile SDKs.
 
-### 2. Android Setup
+It is responsible only for:
 
-In your `android/app/src/main/AndroidManifest.xml`, add the following intent filter inside the `<activity>` tag that handles the PayPal return:
+✔ Native SDK initialization
+✔ Card-based payment approval
+✔ 3DS authentication handling
+✔ Returning payment result to Flutter
+
+It does **NOT** include:
+
+❌ Backend APIs
+❌ Order creation
+❌ Payment capture
+❌ Business logic
+
+## 🏗 Architecture & Payment Flow
+
+This plugin is designed for a secure backend-driven payment system.
+
+**Payment Flow**
+```
+Flutter Card Form
+   ↓
+Backend API → Create Order
+   ↓
+Returns Order ID
+   ↓
+am_flutter_paypal → approveOrder()
+   ↓
+PayPal Native SDK (Android / iOS)
+   ↓
+3DS / Authentication
+   ↓
+Approval Success
+   ↓
+Backend API → Capture Payment
+```
+
+**Responsibilities**
+
+**Backend**
+- Create PayPal Order (Orders v2 API)
+- Capture payment after approval
+
+**Plugin**
+- Handles approval only via native SDK
+- Manages 3DS flow
+- Returns result to Flutter
+
+## 🚀 Getting Started
+
+**Requirements**
+- Android: minSdk 24+
+- iOS: iOS 14.0+
+
+## 🤖 Android Setup
+
+Add this inside your AndroidManifest.xml activity:
 
 ```xml
 <intent-filter android:label="paypalpay">
@@ -35,12 +89,11 @@ In your `android/app/src/main/AndroidManifest.xml`, add the following intent fil
 </intent-filter>
 ```
 
-> [!TIP]
-> Make sure the `android:scheme` matches the `returnUrl` you pass during initialization.
+⚠️ Ensure the scheme matches the returnUrl used in initialization.
 
-### 3. iOS Setup
+## 🍏 iOS Setup
 
-In your `ios/Runner/Info.plist`, add the URL Scheme:
+Add URL scheme in Info.plist:
 
 ```xml
 <key>CFBundleURLTypes</key>
@@ -58,7 +111,129 @@ In your `ios/Runner/Info.plist`, add the URL Scheme:
 </array>
 ```
 
-## Usage
+## ⚙️ Usage
+
+### Step 1 — Initialize SDK (once only)
+
+```dart
+final bool initialized = await AmFlutterPaypal.initialize(
+  clientId: "YOUR_PAYPAL_CLIENT_ID",
+  environment: PayPalEnvironment.sandbox, // or live
+  returnUrl: "com.am.amflutterpaypal://paypalpay",
+);
+```
+
+### Step 2 — Create Order (Backend call)
+
+```dart
+final response = await http.post(
+  Uri.parse("https://your-backend.com/api/paypal/create-order"),
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_TOKEN",
+  },
+  body: jsonEncode({
+    "amount": amount,
+    "currency": "USD",
+  }),
+);
+
+final orderId = jsonDecode(response.body)["order_id"];
+```
+
+### Step 3 — Approve Payment
+
+```dart
+final card = PayPalCard(
+  cardholderName: "John Doe",
+  cardNumber: "4111111111111111",
+  expirationMonth: "12",
+  expirationYear: "2025",
+  securityCode: "123",
+  billingAddress: {
+    "street": "123 Main St",
+    "city": "San Jose",
+    "state": "CA",
+    "zip": "95131",
+    "country": "US",
+  },
+);
+
+final result = await AmFlutterPaypal.approveOrder(
+  orderId: orderId,
+  card: card,
+);
+```
+
+### Step 4 — Capture Payment (Backend)
+
+```dart
+final response = await http.post(
+  Uri.parse("https://your-backend.com/api/paypal/capture-payment"),
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_TOKEN",
+  },
+  body: jsonEncode({
+    "payment_id": result.paymentId,
+  }),
+);
+
+final captured = jsonDecode(response.body)["payment_id"];
+```
+
+⚠️ Show success UI only after capture succeeds
+
+## 💡 Best Practices
+
+- Initialize SDK once only (app startup)
+- Never initialize on every payment click
+- Disable button during payment processing
+- Always capture payment after approval
+- Use live environment only in production
+- Prevent duplicate payment requests
+
+## 🔐 Security
+
+- Card data is never stored or logged
+- All sensitive operations handled by native PayPal SDK
+- No PayPal secrets exist in this plugin
+- Backend must handle:
+  - Order creation
+  - Payment capture
+- 3DS authentication handled natively
+
+## ⚠️ Error Codes
+
+| Code                  | Description                       |
+|-----------------------|-----------------------------------|
+| SDK_NOT_INITIALIZED   | Plugin not initialized             |
+| PAYMENT_IN_PROGRESS   | Another payment is active          |
+| PAYMENT_TIMEOUT       | Approval timed out                 |
+| USER_CANCELLED        | User cancelled payment             |
+| INVALID_ARGUMENTS     | Missing/invalid data               |
+| ACTIVITY_NULL         | Android activity not available     |
+| MISSING_RETURN_URL    | Return URL missing                 |
+| AUTHORIZATION_REQUIRED| 3DS required                       |
+| UNKNOWN_ERROR         | Unexpected native error            |
+
+## 🚀 Production Checklist
+
+- Live PayPal client ID configured
+- Backend order creation API ready
+- Backend capture API ready
+- Sandbox end-to-end testing completed
+- 3DS authentication tested
+- Cancellation handling tested
+- Timeout handling tested
+- Duplicate payment prevention tested
+
+## 📦 Repository
+
+GitHub:
+https://github.com/Abdul520Mannan/am_flutter_paypal
+
+## 📄 License
 
 ### 1. Initialization
 

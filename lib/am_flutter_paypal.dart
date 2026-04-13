@@ -8,6 +8,7 @@ export 'models.dart';
 /// A Flutter plugin for PayPal Advanced Checkout integration (Approval Only).
 class AmFlutterPaypal {
   static const MethodChannel _channel = MethodChannel('am_flutter_paypal');
+  static const String _defaultReturnUrl = 'https://sdk.paypal.com/in-app';
 
   static bool _isInitialized = false;
   static bool _isProcessing = false;
@@ -22,17 +23,19 @@ class AmFlutterPaypal {
     required PayPalEnvironment environment,
     String? returnUrl,
   }) async {
-    if (_isInitialized && _returnUrl == returnUrl) return true;
+    final effectiveReturnUrl = returnUrl ?? _defaultReturnUrl;
+    
+    if (_isInitialized && _returnUrl == effectiveReturnUrl) return true;
 
     try {
       final bool? success = await _channel.invokeMethod<bool>('initialize', {
         'clientId': clientId,
         'environment': environment.name,
-        'returnUrl': returnUrl,
+        'returnUrl': effectiveReturnUrl,
       });
       if (success == true) {
         _isInitialized = true;
-        _returnUrl = returnUrl;
+        _returnUrl = effectiveReturnUrl;
       }
       return _isInitialized;
     } on PlatformException catch (e) {

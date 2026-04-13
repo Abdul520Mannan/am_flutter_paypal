@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:am_flutter_paypal/am_flutter_paypal.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -15,6 +17,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String _status = 'Idle';
   bool _isInitialized = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -22,9 +25,10 @@ class _MyAppState extends State<MyApp> {
     _initPayPal();
   }
 
+  // Initialize the PayPal SDK ONCE (at app startup)
   Future<void> _initPayPal() async {
     final success = await AmFlutterPaypal.initialize(
-      clientId: 'YOUR_SANDBOX_CLIENT_ID', // Replace with real ID
+      clientId: 'YOUR_SANDBOX_CLIENT_ID', // Replace with your real client ID
       environment: PayPalEnvironment.sandbox,
       returnUrl: 'com.am.amflutterpaypal://paypalpay',
     );
@@ -36,51 +40,102 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  // Simulate backend order creation (replace with your real backend call)
+  Future<String?> _createOrderOnBackend(double amount) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://your-backend.com/api/paypal/create-order'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer YOUR_TOKEN'},
+        body: jsonEncode({'amount': amount, 'currency': 'USD'}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['order_id'] as String?;
+      } else {
+        setState(() => _status = 'Order creation failed: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      setState(() => _status = 'Order creation error: $e');
+      return null;
+    }
+  }
+
+  // Simulate backend payment capture (replace with your real backend call)
+  Future<bool> _capturePaymentOnBackend(String orderId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://your-backend.com/api/paypal/capture-payment'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer YOUR_TOKEN'},
+        body: jsonEncode({'order_id': orderId}),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        setState(() => _status = 'Capture failed: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      setState(() => _status = 'Capture error: $e');
+      return false;
+    }
+  }
+
   Future<void> _startPayment() async {
-    if (!_isInitialized) {
-      _initPayPal();
+    if (!_isInitialized || _isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+      _status = 'Creating order on backend...';
+    });
+
+    // 1. Create order on backend
+    final orderId = await _createOrderOnBackend(10.00); // Example amount
+    if (orderId == null) {
+      setState(() => _isProcessing = false);
       return;
     }
 
-    setState(() {
-      _status = 'Processing Payment...';
-    });
+    setState(() => _status = 'Approving payment...');
 
-    const card = PayPalCard(
+    // 2. Collect card details (in production, use a secure form)
+    final card = PayPalCard(
       cardholderName: 'John Doe',
-      cardNumber: '1111222233334444', // Dummy card
+      cardNumber: '4111111111111111', // Test card
       expirationMonth: '12',
       expirationYear: '2025',
       securityCode: '123',
+      billingAddress: {'street': '123 Main St', 'city': 'San Jose', 'state': 'CA', 'zip': '95131', 'country': 'US'},
     );
 
-    // In a real app, get this from your backend
-    const dummyOrderId = '9AF4166299863452B'; 
+    // 3. Approve order using the plugin
+    final result = await AmFlutterPaypal.approveOrder(orderId: orderId, card: card);
 
-    final result = await AmFlutterPaypal.approveOrder(
-      orderId: dummyOrderId,
-      card: card,
-    );
-
-    if (mounted) {
+    if (!result.success) {
       setState(() {
-        if (result.success) {
-          _status = 'Payment Approved!\nOrder ID: ${result.orderId}';
-        } else {
-          _status = 'Payment Error: ${result.errorCode}\n${result.message}';
-        }
+        _status = 'Payment Error: ${result.errorCode}\n${result.message}';
+        _isProcessing = false;
       });
+      return;
     }
+
+    setState(() => _status = 'Capturing payment on backend...');
+
+    // 4. Capture payment on backend
+    final captured = await _capturePaymentOnBackend(orderId);
+    setState(() {
+      _isProcessing = false;
+      if (captured) {
+        _status = 'Payment Captured!\nOrder ID: $orderId';
+      } else {
+        _status = 'Payment approved, but capture failed.';
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('PayPal Approval Plugin'),
-          backgroundColor: Colors.blueAccent,
-        ),
+        appBar: AppBar(title: const Text('PayPal Approval Example'), backgroundColor: Colors.blueAccent),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -96,13 +151,19 @@ class _MyAppState extends State<MyApp> {
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(
-                  onPressed: _isInitialized ? _startPayment : null,
+                  onPressed: (_isInitialized && !_isProcessing) ? _startPayment : null,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(200, 50),
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Approve Dummy Order'),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Start PayPal Payment'),
                 ),
               ],
             ),
